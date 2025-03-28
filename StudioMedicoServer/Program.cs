@@ -61,61 +61,68 @@ namespace StudioMedicoServer
             {
                 byte[] buffer = new byte[1024];
                 int bytesRead;
-                while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
+                try
                 {
-                    string data = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                    Console.WriteLine($"Ricevuto: {data}");
-                    Dictionary<string, string> parsedData = ParseRequest(data);
-                    string message;
-
-                    if (!ValidateCredentials(username: parsedData["username"], password: parsedData["password"], ref parsedData))
+                    while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
                     {
-                        message = "ERROR\nCredenziali mancanti o non valide.";
-                        byte[] res = Encoding.UTF8.GetBytes(message);
-                        stream.Write(res, 0, res.Length);
-                        return;
-                    }
+                        string data = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+                        Console.WriteLine($"Ricevuto: {data}");
+                        Dictionary<string, string> parsedData = ParseRequest(data);
+                        string message;
 
-                    switch (parsedData["command"])
-                    {
-                        case "1":
-                            message = VisualizzaAppuntamenti(
-                                DateTime.Parse(parsedData["data"]).ToString("yyyy-MM-dd"),
-                                Convert.ToInt32(parsedData["medicoId"])
-                                );
-                            break;
-                        case "2":
-                            message = StoriaClinica(
-                                Convert.ToInt32(parsedData["pazienteId"])
-                                );
-                            break;
-                        case "3":
-                            message = InsertVisita(
-                                data: parsedData["data"],
-                                ora: parsedData["ora"],
-                                motivo: parsedData["motivo"],
-                                diagnosi: parsedData["diagnosi"],
-                                prescrizioni: parsedData["prescrizioni"],
-                                medicoId: Convert.ToInt32(parsedData["medicoId"]),
-                                pazienteId: Convert.ToInt32(parsedData["pazienteId"])
-                                );
-                            break;
-                        case "4":
-                            message = InsertCertificato(
-                                data: parsedData["data"],
-                                diagnosi: parsedData["diagnosi"],
-                                giorniDiMalattia: parsedData["giorniDiMalattia"],
-                                medicoId: Convert.ToInt32(parsedData["medicoId"]),
-                                pazienteId: Convert.ToInt32(parsedData["pazienteId"])
-                                );
-                            break;
-                        default:
-                            message = "ERROR\nNumero comando non valido.";
-                            break;
-                    }
+                        if (!ValidateCredentials(username: parsedData["username"], password: parsedData["password"], ref parsedData))
+                        {
+                            message = "ERROR\nCredenziali mancanti o non valide.";
+                            byte[] res = Encoding.UTF8.GetBytes(message);
+                            stream.Write(res, 0, res.Length);
+                            return;
+                        }
 
-                    byte[] response = Encoding.UTF8.GetBytes(message);
-                    stream.Write(response, 0, response.Length);
+                        switch (parsedData["command"])
+                        {
+                            case "1":
+                                message = VisualizzaAppuntamenti(
+                                    DateTime.Parse(parsedData["data"]).ToString("yyyy-MM-dd"),
+                                    Convert.ToInt32(parsedData["medicoMatricola"])
+                                    );
+                                break;
+                            case "2":
+                                message = StoriaClinica(
+                                    Convert.ToInt32(parsedData["pazienteId"])
+                                    );
+                                break;
+                            case "3":
+                                message = InsertVisita(
+                                    data: parsedData["data"],
+                                    ora: parsedData["ora"],
+                                    motivo: parsedData["motivo"],
+                                    diagnosi: parsedData["diagnosi"],
+                                    prescrizioni: parsedData["prescrizioni"],
+                                    medicoMatricola: Convert.ToInt32(parsedData["medicoMatricola"]),
+                                    pazienteId: Convert.ToInt32(parsedData["pazienteId"])
+                                    );
+                                break;
+                            case "4":
+                                message = InsertCertificato(
+                                    data: parsedData["data"],
+                                    diagnosi: parsedData["diagnosi"],
+                                    giorniDiMalattia: parsedData["giorniDiMalattia"],
+                                    medicoMatricola: Convert.ToInt32(parsedData["medicoMatricola"]),
+                                    pazienteId: Convert.ToInt32(parsedData["pazienteId"])
+                                    );
+                                break;
+                            default:
+                                message = "ERROR\nNumero comando non valido.";
+                                break;
+                        }
+
+                        byte[] response = Encoding.UTF8.GetBytes(message);
+                        stream.Write(response, 0, response.Length);
+                    }
+                }
+                catch (IOException e)
+                {
+                    Console.WriteLine(e.Message);
                 }
             }
         }
@@ -124,9 +131,9 @@ namespace StudioMedicoServer
         {
             Dictionary<string, string> parsedData = [];
 
-            List<string> data = request.Split('\n').ToList();
+            List<string> data = request.Trim().Split('\n').ToList();
 
-            parsedData["command"] = data[0];
+            parsedData["command"] = data[0].Trim();
             for (int i = 1; i < data.Count; i++)
             {
                 string key = data[i].Split(':', count: 2)[0].Trim();
@@ -146,17 +153,25 @@ namespace StudioMedicoServer
                 {
                     cmd.CommandText =
                         @"
-                            SELECT medicoId FROM Medico WHERE Username = $username AND Password = $password LIMIT 1;
+                            SELECT Matricola FROM Medico WHERE Username = $username AND Password = $password LIMIT 1;
                         ";
                     cmd.Parameters.AddWithValue("$username", username);
                     cmd.Parameters.AddWithValue("$password", password);
-                    using (SqliteDataReader reader = cmd.ExecuteReader())
+                    try
                     {
-                        if (reader.HasRows)
+                        using (SqliteDataReader reader = cmd.ExecuteReader())
                         {
-                            parsedData["medicoId"] = reader.GetString(0);
-                            return true;
+                            if (reader.HasRows)
+                            {
+                                reader.Read();
+                                parsedData["medicoMatricola"] = reader.GetString(0);
+                                return true;
+                            }
                         }
+                    }
+                    catch (SqliteException e)
+                    {
+                        Console.WriteLine(e.ToString());
                     }
                 }
             }
@@ -286,7 +301,7 @@ namespace StudioMedicoServer
         }
 
 
-        private static string VisualizzaAppuntamenti(string date, int medicoId)
+        private static string VisualizzaAppuntamenti(string date, int medicoMatricola)
         {
             string response = "OK DATI\n";
             using (SqliteConnection conn = new SqliteConnection(_dbConnectionString))
@@ -296,13 +311,13 @@ namespace StudioMedicoServer
                 {
                     cmd.CommandText =
                     @$"
-                        SELECT strftime(%H:%M, Appuntamento.Ora), Appuntamento.Motivo, Appuntamento.Tipo, Paziente.Nome, Paziente.Cognome
+                        SELECT strftime('%H:%M', Appuntamento.Ora), Appuntamento.Motivo, Appuntamento.Tipo, Paziente.Nome, Paziente.Cognome
                         FROM Appuntamento INNER JOIN Paziente ON Appuntamento.Paziente = Paziente.Codice
-                        WHERE strftime(%Y-%m-%d, Appuntamento.Data) = strftime(%Y-%m-%d, $date), Appuntamento.Medico = $medicoId
+                        WHERE strftime('%Y-%m-%d', Appuntamento.Data) = strftime('%Y-%m-%d', $date) AND Appuntamento.Medico = $medicoMatricola
                         ORDER BY time(Appuntamento.Ora) ASC;
                     ";
                     cmd.Parameters.AddWithValue("$date", date);
-                    cmd.Parameters.AddWithValue("$medicoId", medicoId);
+                    cmd.Parameters.AddWithValue("$medicoMatricola", medicoMatricola);
                     using (SqliteDataReader reader = cmd.ExecuteReader())
                     {
                         while (reader.Read())
@@ -330,7 +345,7 @@ namespace StudioMedicoServer
                 {
                     cmd.CommandText =
                     @$"
-                        SELECT strftime(%Y-%m-%d, Visita.Data), Visita.Motivo, Visita.Diagnosi, Visita.Prescrizioni, Medico.Nome, Medico.Cognome
+                        SELECT strftime('%Y-%m-%d', Visita.Data), Visita.Motivo, Visita.Diagnosi, Visita.Prescrizioni, Medico.Nome, Medico.Cognome
                         FROM Visita INNER JOIN Medico ON Visita.Medico = Medico.Matricola
                         WHERE Visita.Paziente = $pazienteId
                         ORDER BY Visita.Data DESC;
@@ -354,7 +369,7 @@ namespace StudioMedicoServer
             }
         }
 
-        private static string InsertVisita(string data, string ora, string motivo, string diagnosi, string prescrizioni, int medicoId, int pazienteId)
+        private static string InsertVisita(string data, string ora, string motivo, string diagnosi, string prescrizioni, int medicoMatricola, int pazienteId)
         {
             using (SqliteConnection conn = new SqliteConnection(_dbConnectionString))
             {
@@ -364,14 +379,14 @@ namespace StudioMedicoServer
                     cmd.CommandText =
                     @"
                         INSERT INTO Visita (Data, Ora, Motivo, Diagnosi, Prescrizioni, Medico, Paziente) VALUES
-                        (strftime(%Y-%m-%d, $data), strftime(%H:%M, $ora), $motivo, $diagnosi, $prescrizioni, $medicoId, $pazienteId)
+                        (strftime('%Y-%m-%d', $data), strftime('%H:%M', $ora), $motivo, $diagnosi, $prescrizioni, $medicoMatricola, $pazienteId)
                     ";
                     cmd.Parameters.AddWithValue("$data", data);
                     cmd.Parameters.AddWithValue("$ora", ora);
                     cmd.Parameters.AddWithValue("$motivo", motivo);
                     cmd.Parameters.AddWithValue("$diagnosi", diagnosi);
                     cmd.Parameters.AddWithValue("$prescrizioni", prescrizioni);
-                    cmd.Parameters.AddWithValue("$medicoId", medicoId);
+                    cmd.Parameters.AddWithValue("$medicoMatricola", medicoMatricola);
                     cmd.Parameters.AddWithValue("$pazienteId", pazienteId);
 
                     cmd.ExecuteNonQuery();
@@ -380,7 +395,7 @@ namespace StudioMedicoServer
             return "OK\nVisita inserita con successo.";
         }
 
-        private static string InsertCertificato(string data, string diagnosi, string giorniDiMalattia, int medicoId, int pazienteId)
+        private static string InsertCertificato(string data, string diagnosi, string giorniDiMalattia, int medicoMatricola, int pazienteId)
         {
             using (SqliteConnection conn = new SqliteConnection(_dbConnectionString))
             {
@@ -389,13 +404,13 @@ namespace StudioMedicoServer
                 {
                     cmd.CommandText =
                     @"
-                        INSERT INTO Visita (Data, Diagnosi, Giorni, Medico, Paziente) VALUES
-                        (strftime(%Y-%m-%d, $data), $diagnosi, $giorniDiMalattia, $medicoId, $pazienteId)
+                        INSERT INTO Certificato (Data, Diagnosi, Giorni, Medico, Paziente) VALUES
+                        (strftime('%Y-%m-%d', $data), $diagnosi, $giorniDiMalattia, $medicoMatricola, $pazienteId)
                     ";
                     cmd.Parameters.AddWithValue("$data", data);
                     cmd.Parameters.AddWithValue("$diagnosi", diagnosi);
                     cmd.Parameters.AddWithValue("giorniDiMalattia", giorniDiMalattia);
-                    cmd.Parameters.AddWithValue("medicoId", medicoId);
+                    cmd.Parameters.AddWithValue("medicoMatricola", medicoMatricola);
                     cmd.Parameters.AddWithValue("pazienteId", pazienteId);
 
                     cmd.ExecuteNonQuery();
