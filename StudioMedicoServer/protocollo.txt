@@ -1,0 +1,28 @@
+# Formato richiesta (parametri se richiesti dal comando)
+
+<numero del comando>
+<nome parametro 1>: <valore parametro 1>
+<nome parametro 2>: <valore parametro 2>
+<nome parametro n>: <valore parametro n>
+
+le richieste devono avere due campi username e password
+
+# Formato risposta
+Se la risposta contiene dei dati
+
+OK DATI
+<nome parametro 1>: <valore 1>
+<nome parametro n>: <valore n>
+
+<nome parametro 1>: <valore 1>
+<nome parametro n>: <valore n>
+
+oppure se non bisogna restituire dati
+
+OK
+<messaggio informativo>
+
+oppure in tutti i casi di errore
+
+ERROR
+<messaggio informativo>
