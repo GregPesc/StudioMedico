@@ -21,6 +21,7 @@ namespace StudioMedicoClient
                     string username = Console.ReadLine();
                     Console.Write("Password: ");
                     string password = Console.ReadLine();
+                    Console.Clear();
 
                     while (true)
                     {
@@ -31,7 +32,10 @@ namespace StudioMedicoClient
                         Console.WriteLine("4 - Inserisci certificato");
                         Console.WriteLine("5 - Esci");
                         Console.Write("Opzione: ");
+
                         string command = Console.ReadLine();
+
+                        Console.Clear();
 
                         if (command == "5")
                             break;
@@ -49,9 +53,9 @@ namespace StudioMedicoClient
                         }
                         else if (command == "2")
                         {
-                            Console.Write("ID Paziente: ");
-                            string pazienteId = Console.ReadLine();
-                            request.AppendLine($"pazienteId: {pazienteId}");
+                            Console.Write("Codice fiscale paziente: ");
+                            string cfPaziente = Console.ReadLine();
+                            request.AppendLine($"cfPaziente: {cfPaziente}");
                         }
                         else if (command == "3")
                         {
@@ -65,15 +69,15 @@ namespace StudioMedicoClient
                             string diagnosi = Console.ReadLine();
                             Console.Write("Prescrizioni: ");
                             string prescrizioni = Console.ReadLine();
-                            Console.Write("ID Paziente: ");
-                            string pazienteId = Console.ReadLine();
+                            Console.Write("Codice fiscale paziente: ");
+                            string cfPaziente = Console.ReadLine();
 
                             request.AppendLine($"data: {data}");
                             request.AppendLine($"ora: {ora}");
                             request.AppendLine($"motivo: {motivo}");
                             request.AppendLine($"diagnosi: {diagnosi}");
                             request.AppendLine($"prescrizioni: {prescrizioni}");
-                            request.AppendLine($"pazienteId: {pazienteId}");
+                            request.AppendLine($"cfPaziente: {cfPaziente}");
                         }
                         else if (command == "4")
                         {
@@ -83,13 +87,13 @@ namespace StudioMedicoClient
                             string diagnosi = Console.ReadLine();
                             Console.Write("Giorni di Malattia: ");
                             string giorniDiMalattia = Console.ReadLine();
-                            Console.Write("ID Paziente: ");
-                            string pazienteId = Console.ReadLine();
+                            Console.Write("Codice fiscale paziente: ");
+                            string cfPaziente = Console.ReadLine();
 
                             request.AppendLine($"data: {data}");
                             request.AppendLine($"diagnosi: {diagnosi}");
                             request.AppendLine($"giorniDiMalattia: {giorniDiMalattia}");
-                            request.AppendLine($"pazienteId: {pazienteId}");
+                            request.AppendLine($"cfPaziente: {cfPaziente}");
                         }
 
                         byte[] requestData = Encoding.UTF8.GetBytes(request.ToString());
@@ -99,8 +103,19 @@ namespace StudioMedicoClient
                         int bytesRead = stream.Read(responseData, 0, responseData.Length);
                         string response = Encoding.UTF8.GetString(responseData, 0, bytesRead);
 
-                        Console.WriteLine("Risposta del server:");
-                        Console.WriteLine(response);
+                        Console.Clear();
+                        if (response.StartsWith("ERROR"))
+                        {
+                            Console.WriteLine(response);
+                        }
+                        else
+                        {
+                            Console.WriteLine(response.Split('\n', count: 2)[1].Trim());
+                        }
+
+                        Console.Write("\n\nPremi enter per tornare al menù: ");
+                        Console.ReadLine();
+                        Console.Clear();
                     }
                 }
             }

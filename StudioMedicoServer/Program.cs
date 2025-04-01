@@ -66,7 +66,7 @@ namespace StudioMedicoServer
                     while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
                     {
                         string data = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                        Console.WriteLine($"Ricevuto: {data}");
+                        Console.WriteLine($"Ricevuto:\n{data}");
                         Dictionary<string, string> parsedData = ParseRequest(data);
                         string message;
 
@@ -75,45 +75,49 @@ namespace StudioMedicoServer
                             message = "ERROR\nCredenziali mancanti o non valide.";
                             byte[] res = Encoding.UTF8.GetBytes(message);
                             stream.Write(res, 0, res.Length);
-                            return;
                         }
-
-                        switch (parsedData["command"])
+                        else
                         {
-                            case "1":
-                                message = VisualizzaAppuntamenti(
-                                    DateTime.Parse(parsedData["data"]).ToString("yyyy-MM-dd"),
-                                    Convert.ToInt32(parsedData["medicoMatricola"])
-                                    );
-                                break;
-                            case "2":
-                                message = StoriaClinica(
-                                    Convert.ToInt32(parsedData["pazienteId"])
-                                    );
-                                break;
-                            case "3":
-                                message = InsertVisita(
-                                    data: parsedData["data"],
-                                    ora: parsedData["ora"],
-                                    motivo: parsedData["motivo"],
-                                    diagnosi: parsedData["diagnosi"],
-                                    prescrizioni: parsedData["prescrizioni"],
-                                    medicoMatricola: Convert.ToInt32(parsedData["medicoMatricola"]),
-                                    pazienteId: Convert.ToInt32(parsedData["pazienteId"])
-                                    );
-                                break;
-                            case "4":
-                                message = InsertCertificato(
-                                    data: parsedData["data"],
-                                    diagnosi: parsedData["diagnosi"],
-                                    giorniDiMalattia: parsedData["giorniDiMalattia"],
-                                    medicoMatricola: Convert.ToInt32(parsedData["medicoMatricola"]),
-                                    pazienteId: Convert.ToInt32(parsedData["pazienteId"])
-                                    );
-                                break;
-                            default:
-                                message = "ERROR\nNumero comando non valido.";
-                                break;
+                            switch (parsedData["command"])
+                            {
+                                case "0":
+                                    message = "OK\nCredenziali valide.";
+                                    break;
+                                case "1":
+                                    message = VisualizzaAppuntamenti(
+                                        DateTime.Parse(parsedData["data"]).ToString("yyyy-MM-dd"),
+                                        Convert.ToInt32(parsedData["medicoMatricola"])
+                                        );
+                                    break;
+                                case "2":
+                                    message = StoriaClinica(
+                                        cfPaziente: parsedData["cfPaziente"]
+                                        );
+                                    break;
+                                case "3":
+                                    message = InsertVisita(
+                                        data: parsedData["data"],
+                                        ora: parsedData["ora"],
+                                        motivo: parsedData["motivo"],
+                                        diagnosi: parsedData["diagnosi"],
+                                        prescrizioni: parsedData["prescrizioni"],
+                                        medicoMatricola: Convert.ToInt32(parsedData["medicoMatricola"]),
+                                        cfPaziente: parsedData["cfPaziente"]
+                                        );
+                                    break;
+                                case "4":
+                                    message = InsertCertificato(
+                                        data: parsedData["data"],
+                                        diagnosi: parsedData["diagnosi"],
+                                        giorniDiMalattia: parsedData["giorniDiMalattia"],
+                                        medicoMatricola: Convert.ToInt32(parsedData["medicoMatricola"]),
+                                        cfPaziente: parsedData["cfPaziente"]
+                                        );
+                                    break;
+                                default:
+                                    message = "ERROR\nComando non valido.";
+                                    break;
+                            }
                         }
 
                         byte[] response = Encoding.UTF8.GetBytes(message);
@@ -335,12 +339,20 @@ namespace StudioMedicoServer
             }
         }
 
-        private static string StoriaClinica(int pazienteId)
+        private static string StoriaClinica(string cfPaziente)
         {
             string response = "OK DATI\n";
             using (SqliteConnection conn = new SqliteConnection(_dbConnectionString))
             {
                 conn.Open();
+
+                int? pazienteId = GetCodicePazienteFromCF(cfPaziente, conn);
+
+                if (pazienteId == null)
+                {
+                    return $"ERROR\nNon esiste un paziente con il codice fiscale '{cfPaziente}'";
+                }
+
                 using (SqliteCommand cmd = conn.CreateCommand())
                 {
                     cmd.CommandText =
@@ -369,11 +381,44 @@ namespace StudioMedicoServer
             }
         }
 
-        private static string InsertVisita(string data, string ora, string motivo, string diagnosi, string prescrizioni, int medicoMatricola, int pazienteId)
+        private static int? GetCodicePazienteFromCF(string cfPaziente, SqliteConnection conn)
         {
+            using (SqliteCommand cmd = conn.CreateCommand())
+            {
+                cmd.CommandText =
+                @$"
+                        SELECT Paziente.Codice
+                        FROM Paziente
+                        WHERE CF = $cfPaziente;
+                    ";
+                cmd.Parameters.AddWithValue("$cfPaziente", cfPaziente);
+                using (SqliteDataReader reader = cmd.ExecuteReader())
+                {
+                    if (!reader.HasRows)
+                    {
+                        return null;
+                    }
+
+                    reader.Read();
+                    return reader.GetInt32(0);
+                }
+            }
+        }
+
+        private static string InsertVisita(string data, string ora, string motivo, string diagnosi, string prescrizioni, int medicoMatricola, string cfPaziente)
+        {
+
             using (SqliteConnection conn = new SqliteConnection(_dbConnectionString))
             {
                 conn.Open();
+
+                int? pazienteId = GetCodicePazienteFromCF(cfPaziente, conn);
+
+                if (pazienteId == null)
+                {
+                    return $"ERROR\nNon esiste un paziente con il codice fiscale '{cfPaziente}'";
+                }
+
                 using (SqliteCommand cmd = conn.CreateCommand())
                 {
                     cmd.CommandText =
@@ -395,11 +440,19 @@ namespace StudioMedicoServer
             return "OK\nVisita inserita con successo.";
         }
 
-        private static string InsertCertificato(string data, string diagnosi, string giorniDiMalattia, int medicoMatricola, int pazienteId)
+        private static string InsertCertificato(string data, string diagnosi, string giorniDiMalattia, int medicoMatricola, string cfPaziente)
         {
             using (SqliteConnection conn = new SqliteConnection(_dbConnectionString))
             {
                 conn.Open();
+
+                int? pazienteId = GetCodicePazienteFromCF(cfPaziente, conn);
+
+                if (pazienteId == null)
+                {
+                    return $"ERROR\nNon esiste un paziente con il codice fiscale '{cfPaziente}'";
+                }
+
                 using (SqliteCommand cmd = conn.CreateCommand())
                 {
                     cmd.CommandText =
@@ -429,11 +482,11 @@ namespace StudioMedicoServer
                     cmd.CommandText =
                     @"
                         INSERT INTO Paziente (Nome, Cognome, CF, Telefono, Mail, DataNascita, Sesso) VALUES
-                        ($nome, $cognome, $cf, $tel, $email, $nascita, $sesso)
+                        ($nome, $cognome, $cfPaziente, $tel, $email, $nascita, $sesso)
                     ";
                     cmd.Parameters.AddWithValue("$nome", nome);
                     cmd.Parameters.AddWithValue("$cognome", cognome);
-                    cmd.Parameters.AddWithValue("$cf", cf);
+                    cmd.Parameters.AddWithValue("$cfPaziente", cf);
                     cmd.Parameters.AddWithValue("$tel", tel);
                     cmd.Parameters.AddWithValue("$email", email);
                     cmd.Parameters.AddWithValue("$nascita", nascita);
