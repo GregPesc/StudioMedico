@@ -50,9 +50,13 @@ namespace StudioMedicoClient
                         Console.WriteLine("3 - Inserisci visita");
                         Console.WriteLine("4 - Inserisci certificato");
                         Console.WriteLine("5 - Esci");
-                        Console.Write("Opzione: ");
-
-                        string command = Console.ReadLine();
+                        string command;
+                        do
+                        {
+                            Console.Write("Opzione: ");
+                            command = Console.ReadLine();
+                        }
+                        while (command is null);
 
                         Console.Clear();
 

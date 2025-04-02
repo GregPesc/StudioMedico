@@ -42,6 +42,7 @@ namespace StudioMedicoServer
     {
         // sennò crea il file .db dentro /bin/Debug/net8.0 quando eseguito da dentro vs
         private static readonly string _dbConnectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "database.db")};";
+        private static readonly string _logFile = $"{Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "log.txt")}";
         public readonly int port = port;
         private readonly bool _insertPlaceholderData = placeholderData;
 
@@ -54,7 +55,7 @@ namespace StudioMedicoServer
             }
             TcpListener server = new TcpListener(IPAddress.Any, this.port);
             server.Start();
-            Console.WriteLine($"Server in ascolto su port {this.port}");
+            LogtoFile($"Server in ascolto su port {this.port}");
             while (true)
             {
                 TcpClient client = server.AcceptTcpClient();
@@ -80,7 +81,7 @@ namespace StudioMedicoServer
                     while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
                     {
                         string data = Encoding.UTF8.GetString(buffer, 0, bytesRead);
-                        Console.WriteLine($"Ricevuto:\n{data}");
+                        LogtoFile($"Ricevuto\n{data}");
                         Dictionary<string, string> parsedData = ParseRequest(data);
                         string message;
 
@@ -147,7 +148,7 @@ namespace StudioMedicoServer
                 }
                 catch (IOException e)
                 {
-                    Console.WriteLine(e.Message);
+                    LogtoFile(e.Message);
                 }
             }
         }
@@ -272,6 +273,15 @@ namespace StudioMedicoServer
                 }
             }
         }
+        
+        private static void LogtoFile(string text)
+        {
+            string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            string msg = $"[{now}] {text}\n";
+            File.AppendAllText(_logFile, msg);
+
+            Console.WriteLine(msg);
+        }
 
         private static Dictionary<string, string> ParseRequest(string request)
         {
@@ -317,7 +327,7 @@ namespace StudioMedicoServer
                     }
                     catch (SqliteException e)
                     {
-                        Console.WriteLine(e.ToString());
+                        LogtoFile(e.ToString());
                     }
                 }
             }
