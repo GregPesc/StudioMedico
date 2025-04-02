@@ -40,23 +40,24 @@ namespace StudioMedicoClient
                     string username = Console.ReadLine();
                     Console.Write("Password: ");
                     string password = Console.ReadLine();
-                    Console.Clear();
 
                     while (true)
                     {
-                        Console.WriteLine("Scegli un comando:");
-                        Console.WriteLine("1 - Visualizza appuntamenti");
-                        Console.WriteLine("2 - Storia clinica");
-                        Console.WriteLine("3 - Inserisci visita");
-                        Console.WriteLine("4 - Inserisci certificato");
-                        Console.WriteLine("5 - Esci");
+
                         string command;
                         do
                         {
+                            Console.Clear();
+                            Console.WriteLine("Scegli un comando:");
+                            Console.WriteLine("1 - Visualizza appuntamenti");
+                            Console.WriteLine("2 - Storia clinica");
+                            Console.WriteLine("3 - Inserisci visita");
+                            Console.WriteLine("4 - Inserisci certificato");
+                            Console.WriteLine("5 - Esci");
                             Console.Write("Opzione: ");
                             command = Console.ReadLine();
                         }
-                        while (command is null);
+                        while ((command is null) || (command == ""));
 
                         Console.Clear();
 
