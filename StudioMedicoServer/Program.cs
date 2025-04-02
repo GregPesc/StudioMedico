@@ -31,7 +31,7 @@ namespace StudioMedicoServer
 
             }
 
-            Console.WriteLine($"=====\nAvvio server\nPorta:{port}\nInserimento dati placeholder: {insertPlaceholderData}\n=====");
+            Console.WriteLine($"=====\nAvvio server\nPorta: {port}\nInserimento dati placeholder: {insertPlaceholderData}\n=====");
 
             Server server = new Server(port: port, placeholderData: insertPlaceholderData);
             server.Start();
@@ -144,9 +144,10 @@ namespace StudioMedicoServer
 
                         byte[] response = Encoding.UTF8.GetBytes(message);
                         stream.Write(response, 0, response.Length);
+                        LogtoFile("Risposta\n" + message);
                     }
                 }
-                catch (IOException e)
+                catch (Exception e)
                 {
                     LogtoFile(e.Message);
                 }
@@ -327,7 +328,7 @@ namespace StudioMedicoServer
                     }
                     catch (SqliteException e)
                     {
-                        LogtoFile(e.ToString());
+                        LogtoFile(e.Message);
                     }
                 }
             }
@@ -390,7 +391,7 @@ namespace StudioMedicoServer
                             string tipo = reader.GetString(2);
                             string nome = reader.GetString(3);
                             string cognome = reader.GetString(4);
-                            response += $"ora: {ora}\nmotivo: {motivo}\ntipo: {tipo}\nnome: {nome}\ncognome: {cognome}\n\n\n";
+                            response += $"ora: {ora}\nmotivo: {motivo}\ntipo: {tipo}\npaziente: {nome} {cognome}\n\n\n";
                         }
                         return response;
                     }
@@ -481,7 +482,7 @@ namespace StudioMedicoServer
                 }
                 catch (Microsoft.Data.Sqlite.SqliteException e)
                 {
-                    return $"ERROR\nAssicurati di aver inserito dati nel formato corretto.\n{e}";
+                    return $"ERROR\nAssicurati di aver inserito dati nel formato corretto.\n{e.Message}";
                 }
             }
             return "OK\nVisita inserita con successo.";
@@ -520,7 +521,7 @@ namespace StudioMedicoServer
                 }
                 catch (Exception e)
                 {
-                    return $"ERROR\nAssicurati di aver inserito i dati nel formato corretto.\n{e}";
+                    return $"ERROR\nAssicurati di aver inserito i dati nel formato corretto.\n{e.Message}";
                 }
             }
             return "OK\nCertificato inserito con successo.";
