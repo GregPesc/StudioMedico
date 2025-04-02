@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Text;
 using Microsoft.Data.Sqlite;
 
@@ -153,58 +152,6 @@ namespace StudioMedicoServer
             }
         }
 
-        private static Dictionary<string, string> ParseRequest(string request)
-        {
-            Dictionary<string, string> parsedData = [];
-
-            List<string> data = request.Trim().Split('\n').ToList();
-
-            parsedData["command"] = data[0].Trim();
-            for (int i = 1; i < data.Count; i++)
-            {
-                string key = data[i].Split(':', count: 2)[0].Trim();
-                string value = data[i].Split(':', count: 2)[1].Trim();
-                parsedData[key] = value;
-            }
-
-            return parsedData;
-        }
-
-        private static bool ValidateCredentials(string username, string password, ref Dictionary<string, string> parsedData)
-        {
-            using (SqliteConnection conn = new SqliteConnection(_dbConnectionString))
-            {
-                conn.Open();
-                using (SqliteCommand cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText =
-                        @"
-                            SELECT Matricola FROM Medico WHERE Username = $username AND Password = $password LIMIT 1;
-                        ";
-                    cmd.Parameters.AddWithValue("$username", username);
-                    cmd.Parameters.AddWithValue("$password", password);
-                    try
-                    {
-                        using (SqliteDataReader reader = cmd.ExecuteReader())
-                        {
-                            if (reader.HasRows)
-                            {
-                                reader.Read();
-                                parsedData["medicoMatricola"] = reader.GetString(0);
-                                return true;
-                            }
-                        }
-                    }
-                    catch (SqliteException e)
-                    {
-                        Console.WriteLine(e.ToString());
-                    }
-                }
-            }
-            return false;
-        }
-
-
         private static void CreaDb()
         {
             using (SqliteConnection conn = new SqliteConnection(_dbConnectionString))
@@ -326,6 +273,80 @@ namespace StudioMedicoServer
             }
         }
 
+        private static Dictionary<string, string> ParseRequest(string request)
+        {
+            Dictionary<string, string> parsedData = [];
+
+            List<string> data = request.Trim().Split('\n').ToList();
+
+            parsedData["command"] = data[0].Trim();
+            for (int i = 1; i < data.Count; i++)
+            {
+                string key = data[i].Split(':', count: 2)[0].Trim();
+                string value = data[i].Split(':', count: 2)[1].Trim();
+                parsedData[key] = value;
+            }
+
+            return parsedData;
+        }
+
+        private static bool ValidateCredentials(string username, string password, ref Dictionary<string, string> parsedData)
+        {
+            using (SqliteConnection conn = new SqliteConnection(_dbConnectionString))
+            {
+                conn.Open();
+                using (SqliteCommand cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText =
+                        @"
+                            SELECT Matricola FROM Medico WHERE Username = $username AND Password = $password LIMIT 1;
+                        ";
+                    cmd.Parameters.AddWithValue("$username", username);
+                    cmd.Parameters.AddWithValue("$password", password);
+                    try
+                    {
+                        using (SqliteDataReader reader = cmd.ExecuteReader())
+                        {
+                            if (reader.HasRows)
+                            {
+                                reader.Read();
+                                parsedData["medicoMatricola"] = reader.GetString(0);
+                                return true;
+                            }
+                        }
+                    }
+                    catch (SqliteException e)
+                    {
+                        Console.WriteLine(e.ToString());
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static int? GetCodicePazienteFromCF(string cfPaziente, SqliteConnection conn)
+        {
+            using (SqliteCommand cmd = conn.CreateCommand())
+            {
+                cmd.CommandText =
+                @$"
+                        SELECT Paziente.Codice
+                        FROM Paziente
+                        WHERE CF = $cfPaziente;
+                    ";
+                cmd.Parameters.AddWithValue("$cfPaziente", cfPaziente);
+                using (SqliteDataReader reader = cmd.ExecuteReader())
+                {
+                    if (!reader.HasRows)
+                    {
+                        return null;
+                    }
+
+                    reader.Read();
+                    return reader.GetInt32(0);
+                }
+            }
+        }
 
         private static string VisualizzaAppuntamenti(string date, int medicoMatricola)
         {
@@ -406,34 +427,10 @@ namespace StudioMedicoServer
                             string prescrizioni = reader.GetString(3);
                             string nome = reader.GetString(4);
                             string cognome = reader.GetString(5);
-                            response += $"data: {data}\nmotivo: {motivo}\ndiagnosi: {diagnosi}\nprescrizioni: {prescrizioni}\nnome: {nome}\ncognome: {cognome}\n\n\n";
+                            response += $"data: {data}\nmotivo: {motivo}\ndiagnosi: {diagnosi}\nprescrizioni: {prescrizioni}\nmedico: {nome} {cognome}\n\n\n";
                         }
                         return response;
                     }
-                }
-            }
-        }
-
-        private static int? GetCodicePazienteFromCF(string cfPaziente, SqliteConnection conn)
-        {
-            using (SqliteCommand cmd = conn.CreateCommand())
-            {
-                cmd.CommandText =
-                @$"
-                        SELECT Paziente.Codice
-                        FROM Paziente
-                        WHERE CF = $cfPaziente;
-                    ";
-                cmd.Parameters.AddWithValue("$cfPaziente", cfPaziente);
-                using (SqliteDataReader reader = cmd.ExecuteReader())
-                {
-                    if (!reader.HasRows)
-                    {
-                        return null;
-                    }
-
-                    reader.Read();
-                    return reader.GetInt32(0);
                 }
             }
         }
