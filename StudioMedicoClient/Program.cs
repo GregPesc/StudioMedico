@@ -10,6 +10,25 @@ namespace StudioMedicoClient
             string serverIp = "localhost";
             int port = 8888;
 
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i] == "--ip-address" && i + 1 < args.Length)
+                    serverIp = args[i + 1];
+                if (args[i] == "--port" && i + 1 < args.Length)
+                {
+                    try
+                    {
+                        port = Convert.ToInt32(args[i + 1]);
+                    }
+                    catch (Exception)
+                    {
+                        Console.WriteLine("Numero porta non valido.");
+                        return;
+                    }
+                }
+
+            }
+
             try
             {
                 using (TcpClient client = new TcpClient(serverIp, port))
@@ -113,15 +132,15 @@ namespace StudioMedicoClient
                             Console.WriteLine(response.Split('\n', count: 2)[1].Trim());
                         }
 
-                        Console.Write("\n\nPremi enter per tornare al menù: ");
-                        Console.ReadLine();
+                        Console.Write("\n\nPremi un tasto per tornare al menù...");
+                        Console.ReadKey();
                         Console.Clear();
                     }
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Errore: {e.Message}");
+                Console.WriteLine($"Errore:\n{e.Message}");
             }
         }
     }

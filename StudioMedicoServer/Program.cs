@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text;
 using Microsoft.Data.Sqlite;
 
@@ -10,16 +11,30 @@ namespace StudioMedicoServer
         static void Main(string[] args)
         {
             bool insertPlaceholderData = true;
+            int port = 8888;
 
             for (int i = 0; i < args.Length; i++)
             {
-                if (args[i] == "--no-dummy-data")
+                if (args[i] == "--no-placeholder-data")
                     insertPlaceholderData = false;
+                if (args[i] == "--port" && i + 1 < args.Length)
+                {
+                    try
+                    {
+                        port = Convert.ToInt32(args[i + 1]);
+                    }
+                    catch (Exception)
+                    {
+                        Console.WriteLine("Numero porta non valido.");
+                        return;
+                    }
+                }
+
             }
 
-            Console.WriteLine($"=====\nAvvio server\nInserimento dati placeholder: {insertPlaceholderData}\n=====");
+            Console.WriteLine($"=====\nAvvio server\nPorta:{port}\nInserimento dati placeholder: {insertPlaceholderData}\n=====");
 
-            Server server = new Server(port: 8888, placeholderData: insertPlaceholderData);
+            Server server = new Server(port: port, placeholderData: insertPlaceholderData);
             server.Start();
         }
     }
@@ -84,10 +99,17 @@ namespace StudioMedicoServer
                                     message = "OK\nCredenziali valide.";
                                     break;
                                 case "1":
-                                    message = VisualizzaAppuntamenti(
-                                        DateTime.Parse(parsedData["data"]).ToString("yyyy-MM-dd"),
-                                        Convert.ToInt32(parsedData["medicoMatricola"])
+                                    try
+                                    {
+                                        message = VisualizzaAppuntamenti(
+                                            DateTime.Parse(parsedData["data"]).ToString("yyyy-MM-dd"),
+                                            Convert.ToInt32(parsedData["medicoMatricola"])
                                         );
+                                    }
+                                    catch (FormatException)
+                                    {
+                                        message = "ERROR\nFormato data non valido.";
+                                    }
                                     break;
                                 case "2":
                                     message = StoriaClinica(
@@ -324,6 +346,12 @@ namespace StudioMedicoServer
                     cmd.Parameters.AddWithValue("$medicoMatricola", medicoMatricola);
                     using (SqliteDataReader reader = cmd.ExecuteReader())
                     {
+                        if (!reader.HasRows)
+                        {
+                            response += "Non ci sono appuntamenti per questo giorno.";
+                            return response;
+                        }
+
                         while (reader.Read())
                         {
                             string ora = reader.GetString(0);
@@ -365,6 +393,11 @@ namespace StudioMedicoServer
                     cmd.Parameters.AddWithValue("$pazienteId", pazienteId);
                     using (SqliteDataReader reader = cmd.ExecuteReader())
                     {
+                        if (!reader.HasRows)
+                        {
+                            response += "Questo paziente non ha una storia clinica.";
+                            return response;
+                        }
                         while (reader.Read())
                         {
                             string data = reader.GetString(0);
@@ -419,22 +452,29 @@ namespace StudioMedicoServer
                     return $"ERROR\nNon esiste un paziente con il codice fiscale '{cfPaziente}'";
                 }
 
-                using (SqliteCommand cmd = conn.CreateCommand())
+                try
                 {
-                    cmd.CommandText =
-                    @"
+                    using (SqliteCommand cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText =
+                        @"
                         INSERT INTO Visita (Data, Ora, Motivo, Diagnosi, Prescrizioni, Medico, Paziente) VALUES
                         (strftime('%Y-%m-%d', $data), strftime('%H:%M', $ora), $motivo, $diagnosi, $prescrizioni, $medicoMatricola, $pazienteId)
                     ";
-                    cmd.Parameters.AddWithValue("$data", data);
-                    cmd.Parameters.AddWithValue("$ora", ora);
-                    cmd.Parameters.AddWithValue("$motivo", motivo);
-                    cmd.Parameters.AddWithValue("$diagnosi", diagnosi);
-                    cmd.Parameters.AddWithValue("$prescrizioni", prescrizioni);
-                    cmd.Parameters.AddWithValue("$medicoMatricola", medicoMatricola);
-                    cmd.Parameters.AddWithValue("$pazienteId", pazienteId);
+                        cmd.Parameters.AddWithValue("$data", data);
+                        cmd.Parameters.AddWithValue("$ora", ora);
+                        cmd.Parameters.AddWithValue("$motivo", motivo);
+                        cmd.Parameters.AddWithValue("$diagnosi", diagnosi);
+                        cmd.Parameters.AddWithValue("$prescrizioni", prescrizioni);
+                        cmd.Parameters.AddWithValue("$medicoMatricola", medicoMatricola);
+                        cmd.Parameters.AddWithValue("$pazienteId", pazienteId);
 
-                    cmd.ExecuteNonQuery();
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                catch (Microsoft.Data.Sqlite.SqliteException e)
+                {
+                    return $"ERROR\nAssicurati di aver inserito dati nel formato corretto.\n{e}";
                 }
             }
             return "OK\nVisita inserita con successo.";
@@ -453,20 +493,27 @@ namespace StudioMedicoServer
                     return $"ERROR\nNon esiste un paziente con il codice fiscale '{cfPaziente}'";
                 }
 
-                using (SqliteCommand cmd = conn.CreateCommand())
+                try
                 {
-                    cmd.CommandText =
-                    @"
+                    using (SqliteCommand cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText =
+                        @"
                         INSERT INTO Certificato (Data, Diagnosi, Giorni, Medico, Paziente) VALUES
                         (strftime('%Y-%m-%d', $data), $diagnosi, $giorniDiMalattia, $medicoMatricola, $pazienteId)
                     ";
-                    cmd.Parameters.AddWithValue("$data", data);
-                    cmd.Parameters.AddWithValue("$diagnosi", diagnosi);
-                    cmd.Parameters.AddWithValue("giorniDiMalattia", giorniDiMalattia);
-                    cmd.Parameters.AddWithValue("medicoMatricola", medicoMatricola);
-                    cmd.Parameters.AddWithValue("pazienteId", pazienteId);
+                        cmd.Parameters.AddWithValue("$data", data);
+                        cmd.Parameters.AddWithValue("$diagnosi", diagnosi);
+                        cmd.Parameters.AddWithValue("giorniDiMalattia", Convert.ToInt32(giorniDiMalattia));
+                        cmd.Parameters.AddWithValue("medicoMatricola", medicoMatricola);
+                        cmd.Parameters.AddWithValue("pazienteId", pazienteId);
 
-                    cmd.ExecuteNonQuery();
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                catch (Exception e)
+                {
+                    return $"ERROR\nAssicurati di aver inserito i dati nel formato corretto.\n{e}";
                 }
             }
             return "OK\nCertificato inserito con successo.";
