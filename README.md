@@ -2,8 +2,8 @@
 
 ## Valori per testing
 
-Username medico: gregpesc  
-Password medico: Pippo123  
+Username medico: 1  
+Password medico: porciatti  
 Data con visite: 2025-04-10  
 Codice fiscale paziente: TNLTMM06L04H501Z
 

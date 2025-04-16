@@ -244,7 +244,7 @@ namespace StudioMedicoServer
                         ('Federico', 'Bianchi', 'BNCFRC85D22H501Y', '3206677889', 'federico.bianchi@email.com', '1985-04-22', 'M');
 
                         INSERT OR IGNORE INTO Medico (Matricola, Nome, Cognome, CF, Telefono, Mail, Username, Password) VALUES
-                        (1001, 'Gregorio', 'Pescucci', 'PSCGGR06C30AAAAA', '3381234567', 'gregorio.pescucci@email.com', 'gregpesc', 'Pippo123'),
+                        (1001, 'Gregorio', 'Pescucci', 'PSCGGR06C30AAAAA', '3381234567', 'gregorio.pescucci@email.com', '1', 'porciatti'),
                         (1002, 'Anna', 'Neri', 'NRIANN75D22H501Z', '3397766554', 'anna.neri@email.com', 'aneri', 'password456'),
                         (1003, 'Luca', 'Gialli', 'GLLLCA82E15H501V', '3284433221', 'luca.gialli@email.com', 'lgialli', 'securepass');
 
