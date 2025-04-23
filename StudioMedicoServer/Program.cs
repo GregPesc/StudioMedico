@@ -1,5 +1,8 @@
 ﻿using System.Net;
+using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using Microsoft.Data.Sqlite;
 
@@ -53,31 +56,52 @@ namespace StudioMedicoServer
             {
                 InsertPlaceholderData();
             }
-            TcpListener server = new TcpListener(IPAddress.Any, this.port);
-            server.Start();
-            LogtoFile($"Server in ascolto su port {this.port}");
-            while (true)
-            {
-                TcpClient client = server.AcceptTcpClient();
-                Thread clientThread = new Thread(HandleClient);
-                clientThread.Start(client);
-            }
-        }
 
-        private void HandleClient(object? obj)
-        {
-            if (obj is null)
+            X509Certificate2 certificate;
+
+            try
             {
+                certificate = GetCertificateFromStore("THUMBPRINT_QUI");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
                 return;
             }
 
-            using (TcpClient client = (TcpClient)obj)
-            using (NetworkStream stream = client.GetStream())
+            TcpListener server = new TcpListener(IPAddress.Any, this.port);
+            server.Start();
+            LogtoFile($"Server TLS in ascolto su port {this.port}");
+            while (true)
+            {
+                TcpClient client = server.AcceptTcpClient();
+                Task.Run(() => HandleClient(client, certificate));
+            }
+        }
+
+        static X509Certificate2 GetCertificateFromStore(string thumbprint)
+        {
+            using X509Store store = new X509Store(StoreName.My, StoreLocation.CurrentUser);
+            store.Open(OpenFlags.ReadOnly);
+            X509Certificate2Collection certs = store.Certificates.Find(X509FindType.FindByThumbprint, thumbprint, false);
+            if (certs.Count == 0)
+                throw new Exception("Certificato non trovato!");
+            return certs[0];
+        }
+
+        private void HandleClient(TcpClient client, X509Certificate certificate)
+        {
+
+            using (SslStream stream = new SslStream(client.GetStream(), false))
             {
                 byte[] buffer = new byte[1024];
                 int bytesRead;
                 try
                 {
+                    // Autenticazione del server
+                    stream.AuthenticateAsServer(certificate, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
+                    Console.WriteLine($"Connessione sicura stabilita {stream.IsAuthenticated}");
+
                     while ((bytesRead = stream.Read(buffer, 0, buffer.Length)) != 0)
                     {
                         string data = Encoding.UTF8.GetString(buffer, 0, bytesRead);
@@ -274,7 +298,7 @@ namespace StudioMedicoServer
                 }
             }
         }
-        
+
         private static void LogtoFile(string text)
         {
             string now = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");

@@ -1,5 +1,10 @@
 ﻿using System.Net.Sockets;
 using System.Text;
+using System.Net.Security;
+using System.Net.Sockets;
+using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
+using System.Text;
 
 namespace StudioMedicoClient
 {
@@ -32,9 +37,11 @@ namespace StudioMedicoClient
             try
             {
                 using (TcpClient client = new TcpClient(serverIp, port))
-                using (NetworkStream stream = client.GetStream())
+                using (SslStream stream = new SslStream(client.GetStream(), false, new RemoteCertificateValidationCallback(ValidateServerCertificate), null))
                 {
-                    Console.WriteLine("Connesso al server.");
+                    // Autenticazione del client
+                    stream.AuthenticateAsClient(serverIp, null, SslProtocols.Tls12 | SslProtocols.Tls13, true);
+                    Console.WriteLine($"Connessione sicura stabilita {stream.IsAuthenticated}");
 
                     Console.Write("Username: ");
                     string username = Console.ReadLine();
@@ -148,5 +155,16 @@ namespace StudioMedicoClient
                 Console.WriteLine($"Errore:\n{e.Message}");
             }
         }
+        // Metodo per validare il certificato del server (qui è permissivo solo per esempio)
+        public static bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        {
+            if (sslPolicyErrors == SslPolicyErrors.None)
+                return true;
+            Console.WriteLine($"Errore certificato: {sslPolicyErrors}");
+            // ATTENZIONE: per scopi dimostrativi consentiamo sempre.
+            // NON usare in produzione!
+            return true;
+        }
     }
+
 }
