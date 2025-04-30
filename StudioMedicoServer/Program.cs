@@ -14,6 +14,7 @@ namespace StudioMedicoServer
         {
             bool insertPlaceholderData = true;
             int port = 8888;
+            string thumbprint = "";
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -31,23 +32,28 @@ namespace StudioMedicoServer
                         return;
                     }
                 }
+                if (args[i] == "--thumbprint" && i + 1 < args.Length)
+                {
+                    thumbprint = args[i + 1];
+                }
 
             }
 
-            Console.WriteLine($"=====\nAvvio server\nPorta: {port}\nInserimento dati placeholder: {insertPlaceholderData}\n=====");
+            Console.WriteLine($"=====\nAvvio server\nPorta: {port}\nInserimento dati placeholder: {insertPlaceholderData}\nThumbprint certificato: {thumbprint}\n=====");
 
-            Server server = new Server(port: port, placeholderData: insertPlaceholderData);
+            Server server = new Server(port: port, placeholderData: insertPlaceholderData, thumbprint: thumbprint);
             server.Start();
         }
     }
 
-    internal class Server(int port, bool placeholderData)
+    internal class Server(int port, bool placeholderData, string thumbprint)
     {
         // sennò crea il file .db dentro /bin/Debug/net8.0 quando eseguito da dentro vs
         private static readonly string _dbConnectionString = $"Data Source={Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "database.db")};";
         private static readonly string _logFile = $"{Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "log.txt")}";
         public readonly int port = port;
         private readonly bool _insertPlaceholderData = placeholderData;
+        private readonly string _thumbprint = thumbprint;
 
         public void Start()
         {
@@ -61,7 +67,7 @@ namespace StudioMedicoServer
 
             try
             {
-                certificate = GetCertificateFromStore("4e72cd55e06ec3cfd221c8db1d03b92ae902910c");
+                certificate = GetCertificateFromStore(_thumbprint);
             }
             catch (Exception e)
             {
@@ -85,7 +91,7 @@ namespace StudioMedicoServer
             store.Open(OpenFlags.ReadOnly);
             X509Certificate2Collection certs = store.Certificates.Find(X509FindType.FindByThumbprint, thumbprint, false);
             if (certs.Count == 0)
-                throw new Exception("Certificato non trovato!");
+                throw new Exception("Certificato non trovato! Puoi specificare il thumbprint con --thumbprint <value>.");
             return certs[0];
         }
 
