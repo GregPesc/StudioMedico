@@ -32,8 +32,7 @@ Write-Host "Certificato creato con Subject: $($cert.Subject)"
 $pfxPath = Join-Path $cartellaOutput "$nomeCertificato.pfx"
 $cerPath = Join-Path $cartellaOutput "$nomeCertificato.cer"
 # Esporta il certificato + chiave privata (.pfx)
-Export-PfxCertificate -Cert $cert.PSPath -FilePath $pfxPath -Password
-$passwordPfxSecure
+Export-PfxCertificate -Cert $cert.PSPath -FilePath $pfxPath -Password $passwordPfxSecure
 Write-Host "File .pfx esportato in: $pfxPath"
 # Esporta solo il certificato pubblico (.cer)
 Export-Certificate -Cert $cert.PSPath -FilePath $cerPath

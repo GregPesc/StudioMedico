@@ -61,7 +61,7 @@ namespace StudioMedicoServer
 
             try
             {
-                certificate = GetCertificateFromStore("THUMBPRINT_QUI");
+                certificate = GetCertificateFromStore("4e72cd55e06ec3cfd221c8db1d03b92ae902910c");
             }
             catch (Exception e)
             {
